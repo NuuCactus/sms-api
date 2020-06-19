@@ -26,3 +26,4 @@ RUN mkdir /.cache
 EXPOSE 8080
 
 ENTRYPOINT ["rerun"]
+CMD ["-a", "serve"]
