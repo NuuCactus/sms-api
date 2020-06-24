@@ -1,16 +1,19 @@
 package cmd
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/spf13/cobra"
 
 	homedir "github.com/mitchellh/go-homedir"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"github.com/spf13/viper"
 )
 
 var cfgFile string
+var verbose bool
+var console bool
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
@@ -26,23 +29,22 @@ var rootCmd = &cobra.Command{
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Println(err)
+		log.Error().Err(err)
 		os.Exit(1)
 	}
 }
 
 func init() {
+	cobra.OnInitialize(initLogging)
 	cobra.OnInitialize(initConfig)
 
 	// Here you will define your flags and configuration settings.
 	// Cobra supports persistent flags, which, if defined here,
 	// will be global for your application.
 
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.sms-worker.yaml)")
-
-	// Cobra also supports local flags, which will only run
-	// when this action is called directly.
-	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.sms-api.yaml)")
+	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "enable verbose output")
+	rootCmd.PersistentFlags().BoolVarP(&console, "console", "c", false, "enable human readable console output")
 }
 
 // initConfig reads in config file and ENV variables if set.
@@ -54,19 +56,37 @@ func initConfig() {
 		// Find home directory.
 		home, err := homedir.Dir()
 		if err != nil {
-			fmt.Println(err)
+			log.Error().Err(err)
 			os.Exit(1)
 		}
 
 		// Search config in home directory with name ".sms-worker" (without extension).
 		viper.AddConfigPath(home)
-		viper.SetConfigName(".sms-worker")
+		viper.SetConfigName(".sms-api")
 	}
 
 	viper.AutomaticEnv() // read in environment variables that match
 
 	// If a config file is found, read it in.
 	if err := viper.ReadInConfig(); err == nil {
-		fmt.Println("Using config file:", viper.ConfigFileUsed())
+		log.Info().Msgf("Using config file: %s", viper.ConfigFileUsed())
+	}
+}
+
+func initLogging(){
+	log.Logger = log.With().Caller().Logger()
+
+	if console {
+		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
+	}
+
+	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
+	zerolog.TimestampFieldName = "time"
+	zerolog.LevelFieldName = "level"
+	zerolog.MessageFieldName = "msg"
+
+	zerolog.SetGlobalLevel(zerolog.InfoLevel)
+	if verbose {
+		zerolog.SetGlobalLevel(zerolog.DebugLevel)
 	}
 }
