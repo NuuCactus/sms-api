@@ -32,6 +32,30 @@ func RunServe() func(cmd *cobra.Command, args []string) {
 			os.Exit(1)
 		}
 
+		readTimeout, err := cmd.Flags().GetInt("read-timeout")
+		if err != nil {
+			log.Warn().Msg("Missing read-timeout")
+			os.Exit(1)
+		}
+
+		readHeaderTimeout, err := cmd.Flags().GetInt("read-header-timeout")
+		if err != nil {
+			log.Warn().Msg("Missing read-header-timeout")
+			os.Exit(1)
+		}
+
+		writeTimeout, err := cmd.Flags().GetInt("write-timeout")
+		if err != nil {
+			log.Warn().Msg("Missing write-timeout")
+			os.Exit(1)
+		}
+
+		idleTimeout, err := cmd.Flags().GetInt("idle-timeout")
+		if err != nil {
+			log.Warn().Msg("Missing idle-timeout")
+			os.Exit(1)
+		}
+
 		addr := fmt.Sprintf("%s:%d", ip, port)
 
 		route := router.NewRouter()
@@ -39,12 +63,13 @@ func RunServe() func(cmd *cobra.Command, args []string) {
 		chain := alice.New( middleware.Context, middleware.Logging )
 
 		srv := &http.Server{
-			Addr:         addr,
+			Addr:              addr,
 			// Good practice to set timeouts to avoid Slowloris attacks.
-			WriteTimeout: time.Second * 15,
-			ReadTimeout:  time.Second * 15,
-			IdleTimeout:  time.Second * 60,
-			Handler: chain.Then(route), // Pass our instance of gorilla/mux in.
+			WriteTimeout:      time.Second * time.Duration(writeTimeout),
+			ReadTimeout:       time.Second * time.Duration(readTimeout),
+			ReadHeaderTimeout: time.Second * time.Duration(readHeaderTimeout),
+			IdleTimeout:       time.Second * time.Duration(idleTimeout),
+			Handler:           chain.Then(route), // Pass our instance of gorilla/mux in.
 		}
 
 		// Run our server in a goroutine so that it doesn't block.
